@@ -1,64 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
+import 'auth_service.dart';
+import 'login_register_screen.dart';
 
 void main() async {
-  final client = StreamChatClient(
-    's7yt6hcn3q85',
-    logLevel: Level.INFO,
-  );
-
-  await client.connectUser(
-    User(id: 'bloodor'),
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYmxvb2RvciJ9.FizDla_lgVAJ_iBvywogTIJmiPbiTltOfTw_iQFHltI',
-  );
-
-  runApp(
-    MyApp(
-      client: client,
-    ),
-  );
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({
-    Key? key,
-    required this.client,
-  }) : super(key: key);
-
-  final StreamChatClient client;
+  final AuthService authService = AuthService(baseUrl: 'localhost:3000');
 
   @override
   Widget build(BuildContext context) {
-
-    final themeData = ThemeData(primarySwatch: Colors.green);
-    final defaultTheme = StreamChatThemeData.fromTheme(themeData);
-    final colorTheme = defaultTheme.colorTheme;
-    final customTheme = defaultTheme.merge(StreamChatThemeData(
-      channelPreviewTheme: StreamChannelPreviewThemeData(
-        avatarTheme: StreamAvatarThemeData(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      otherMessageTheme: StreamMessageThemeData(
-        messageBackgroundColor: colorTheme.textHighEmphasis,
-        messageTextStyle: TextStyle(
-          color: colorTheme.barsBg,
-        ),
-        avatarTheme: StreamAvatarThemeData(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    ));
-
     return MaterialApp(
-      theme: themeData,
+      theme: ThemeData(primarySwatch: Colors.green),
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => StreamChat(
-        streamChatThemeData: customTheme,
-        client: client,
-        child: child,
+      home: LoginRegisterScreen(
+        authService: authService,
+        onAuthenticated: (userId, streamToken) async {
+          final client = StreamChatClient(
+            's7yt6hcn3q85',
+            logLevel: Level.INFO,
+          );
+
+          await client.connectUser(
+            User(id: userId),
+            streamToken,
+          );
+
+          runApp(
+            MaterialApp(
+              theme: ThemeData(primarySwatch: Colors.green),
+              debugShowCheckedModeBanner: false,
+              builder: (context, child) => StreamChat(
+                client: client,
+                child: child,
+              ),
+              home: const ChannelListPage(),
+            ),
+          );
+        },
       ),
-      home: const ChannelListPage(),
     );
   }
 }
@@ -89,9 +71,47 @@ class _ChannelListPageState extends State<ChannelListPage> {
     super.dispose();
   }
 
+  void _logout() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+          builder: (context) => LoginRegisterScreen(authService: AuthService(baseUrl: 'http://localhost:3000'),
+              onAuthenticated: (userId, streamToken) async {
+            final client = StreamChatClient(
+              's7yt6hcn3q85',
+              logLevel: Level.INFO,
+            );
+
+            await client.connectUser(
+              User(id: userId),
+              streamToken,
+            );
+            runApp(
+              MaterialApp(
+                theme: ThemeData(primarySwatch: Colors.green),
+                debugShowCheckedModeBanner: false,
+                builder: (context, child) => StreamChat(
+                  client: client,
+                  child: child,
+                ),
+                home: const ChannelListPage(),
+              ),
+            );
+          }))
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Channels'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+        ],
+      ),
       body: StreamChannelListView(
         controller: _listController,
         onChannelTap: (channel) {
